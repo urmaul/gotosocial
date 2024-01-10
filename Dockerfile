@@ -30,8 +30,12 @@ RUN yarn --cwd ./web/source install && \
 # stage 3: build the executor container
 FROM --platform=${TARGETPLATFORM} alpine:3.17.2 as executor
 
+# user id and group id of a non-root user:group
+ARG UID=1000
+ARG GID=1000
+
 # switch to non-root user:group for GtS
-USER 1000:1000
+USER $UID:$GID
 
 # Because we're doing multi-arch builds we can't easily do `RUN mkdir [...]`
 # but we can hack around that by having docker's WORKDIR make the dirs for
@@ -39,17 +43,17 @@ USER 1000:1000
 #
 # See https://docs.docker.com/engine/reference/builder/#workdir
 #
-# First make sure storage exists + is owned by 1000:1000, then go back
+# First make sure storage exists + is owned by UID:GID, then go back
 # to just /gotosocial, where we'll run from
 WORKDIR "/gotosocial/storage"
 WORKDIR "/gotosocial"
 
 # copy the dist binary created by goreleaser or build.sh
-COPY --chown=1000:1000 gotosocial /gotosocial/gotosocial
+COPY --chown=$UID:$GID gotosocial /gotosocial/gotosocial
 
 # copy over the web directories with templates, assets etc
-COPY --chown=1000:1000 --from=bundler web /gotosocial/web
-COPY --chown=1000:1000 --from=swagger /go/src/github.com/superseriousbusiness/gotosocial/swagger.yaml web/assets/swagger.yaml
+COPY --chown=$UID:$GID --from=bundler web /gotosocial/web
+COPY --chown=$UID:$GID --from=swagger /go/src/github.com/superseriousbusiness/gotosocial/swagger.yaml web/assets/swagger.yaml
 
 VOLUME [ "/gotosocial/storage" ]
 ENTRYPOINT [ "/gotosocial/gotosocial", "server", "start" ]
